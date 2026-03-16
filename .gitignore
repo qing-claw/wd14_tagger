@@ -8,3 +8,4 @@ __pycache__/
 models/
 *.wdtest.txt
 *.log
+test_data/**/*.txt
