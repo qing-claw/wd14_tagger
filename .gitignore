@@ -1,0 +1,10 @@
+.ipynb_checkpoints/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.DS_Store
+
+models/
+*.wdtest.txt
+*.log

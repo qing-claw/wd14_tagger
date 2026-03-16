@@ -1,0 +1,6 @@
+huggingface-hub>=0.34.0
+numpy>=1.26.0
+onnx>=1.16.0
+onnxruntime>=1.18.0
+pillow>=10.0.0
+tqdm>=4.66.0
