@@ -18,6 +18,9 @@ DEFAULT_MIRROR = "https://hf-mirror.com"
 DEFAULT_MODEL_DIR = PROJECT_ROOT / "models"
 DEFAULT_BLACKLIST = PROJECT_ROOT / "meta_tag_black_list.txt"
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".bmp"}
+ORDERED_CATEGORY_KEYS = ["special", "character", "copyright", "artist", "general", "meta", "rating", "quality"]
+GENERAL_PREFIX_KEYS = ["special", "character", "copyright", "artist"]
+GENERAL_SUFFIX_KEYS = ["meta", "rating", "quality"]
 SPECIAL_TAGS = {
     "1girl",
     "2girls",
@@ -185,7 +188,7 @@ def categorize_default_format(
     include_rating: bool,
     undesired_tags: set[str],
 ) -> dict[str, list[str]]:
-    categories = {key: [] for key in ["special", "character", "copyright", "artist", "general", "meta", "rating", "quality"]}
+    categories = {key: [] for key in ORDERED_CATEGORY_KEYS}
     general_tags = metadata["general_tags"]
     character_tags = metadata["character_tags"]
     rating_tags = metadata["rating_tags"]
@@ -224,7 +227,7 @@ def categorize_extended_format(
     include_rating: bool,
     undesired_tags: set[str],
 ) -> dict[str, list[str]]:
-    categories = {key: [] for key in ["special", "character", "copyright", "artist", "general", "meta", "rating", "quality"]}
+    categories = {key: [] for key in ORDERED_CATEGORY_KEYS}
     prob = 1.0 / (1.0 + np.exp(-prob))
 
     best_rating = None
@@ -276,12 +279,25 @@ def categorize_extended_format(
     return categories
 
 
-def merge_categories(predicted: dict[str, list[str]], added: dict[str, list[str]]) -> list[str]:
-    ordered_keys = ["special", "character", "copyright", "artist", "general", "meta", "rating", "quality"]
+def merge_categories(predicted: dict[str, list[str]], added: dict[str, list[str]]) -> dict[str, list[str]]:
+    return {key: dedupe_preserve_order(added[key] + predicted[key]) for key in ORDERED_CATEGORY_KEYS}
+
+
+def flatten_categories(categories: dict[str, list[str]], keys: list[str] | None = None) -> list[str]:
     combined = []
-    for key in ordered_keys:
-        combined.extend(dedupe_preserve_order(added[key] + predicted[key]))
+    for key in keys or ORDERED_CATEGORY_KEYS:
+        combined.extend(categories[key])
     return dedupe_preserve_order(combined)
+
+
+def format_caption(categories: dict[str, list[str]], surround_general_tags_with_separators: bool) -> str:
+    if not surround_general_tags_with_separators:
+        return ", ".join(flatten_categories(categories))
+
+    prefix = ", ".join(flatten_categories(categories, GENERAL_PREFIX_KEYS))
+    general = ", ".join(categories["general"])
+    suffix = ", ".join(flatten_categories(categories, GENERAL_SUFFIX_KEYS))
+    return " ||| ".join([prefix, general, suffix]).strip()
 
 
 def setup_parser() -> argparse.ArgumentParser:
@@ -297,6 +313,11 @@ def setup_parser() -> argparse.ArgumentParser:
     parser.add_argument("--caption_extension", default=".txt", help="output caption file extension")
     parser.add_argument("--meta_tag_blacklist_file", default=str(DEFAULT_BLACKLIST), help="path to the meta-tag blacklist file")
     parser.add_argument("--force_download", action="store_true", help="force re-download the WD14 model")
+    parser.add_argument(
+        "--surround_general_tags_with_separators",
+        action="store_true",
+        help="wrap the general tag section with literal ||| separators",
+    )
 
     parser.add_argument("--general_threshold", type=float, default=0.35, help="threshold for general tags")
     parser.add_argument("--character_threshold", type=float, default=0.85, help="threshold for character tags")
@@ -392,10 +413,11 @@ def main() -> None:
                     undesired_tags=undesired_tags,
                 )
 
-            final_tags = merge_categories(predicted, added_categories)
+            final_categories = merge_categories(predicted, added_categories)
+            caption_text = format_caption(final_categories, args.surround_general_tags_with_separators)
             output_path = image_path.with_suffix(args.caption_extension)
             with open(output_path, "w", encoding="utf-8") as f:
-                f.write(", ".join(final_tags) + "\n")
+                f.write(caption_text + "\n")
 
     print(f"Tagged {len(images)} images in {input_dir}")
 

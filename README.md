@@ -64,6 +64,7 @@ python run_wd14_tagger.py --input_dir /你的图片目录
 python run_wd14_tagger.py \
   --input_dir test_data/测试 \
   --caption_extension .wdtest.txt \
+  --surround_general_tags_with_separators \
   --add_special_tags "1girl" \
   --add_character_tags "raiden shogun" \
   --add_copyright_tags "genshin impact" \
@@ -92,6 +93,11 @@ python run_wd14_tagger.py \
   - meta 标签黑名单文件
 - `--force_download`
   - 强制重新下载模型
+- `--surround_general_tags_with_separators`
+  - 把输出写成 `前缀 ||| general ||| 后缀`
+  - 每一段内部的标签仍然用逗号分隔
+  - 其中前缀固定是 `special, character, copyright, artist`
+  - 后缀固定是 `meta, rating, quality`
 
 ## 支持的标签追加类别
 
@@ -116,6 +122,18 @@ python run_wd14_tagger.py \
 6. `meta`
 7. `rating`
 8. `quality`
+
+如果启用 `--surround_general_tags_with_separators`，输出会进一步变成：
+
+```text
+special, character, copyright, artist ||| general ||| meta, rating, quality
+```
+
+例如：
+
+```text
+1girl, hatsune miku ||| stage, microphone, smile ||| safe, best quality
+```
 
 ## 黑名单
 
